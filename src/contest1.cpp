@@ -29,8 +29,7 @@ struct laser_bumper_struct {
 kobuki_msgs::BumperEvent bum;
 sensor_msgs::LaserScan laser;
 
-void bumperCallback(const kobuki_msgs::BumperEvent msg)
-{
+void bumperCallback(const kobuki_msgs::BumperEvent msg) {
     bum = msg;
 }
 
@@ -48,7 +47,8 @@ int main(int argc, char **argv)
 
     ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1);
 
-    ros::ServiceClient map_client = n.serviceClient<nav_msgs::GetMap>("gmapping/dynamic_map");
+    ros::ServiceClient map_client = nh.serviceClient<nav_msgs::GetMap>("gmapping/dynamic_map");
+    nav_msgs::GetMap map_srv;
 
     ros::Rate loop_rate(10);
 
@@ -63,14 +63,18 @@ int main(int argc, char **argv)
     std::chrono::time_point<std::chrono::system_clock> last_map_update;
     last_map_update = std::chrono::system_clock::now();
 
-    while(ros::ok() && secondsElapsed <= 480) {
+    while(ros::ok() && secondsElapsed <= 480) {<
         ros::spinOnce();
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
 
         // check if we should do mapping
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count() > MAPPING_RATE) {
             
-            
+            if(!map_client.call(map_srv)) {
+                ROS_ERROR("MAP SERVICE DID NOT RESPOND!");
+            }
+
+            srv.response.map
 
             now = std::chrono::system_clock::now();
             last_map_update = now;
