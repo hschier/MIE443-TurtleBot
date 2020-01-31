@@ -60,21 +60,19 @@ int main(int argc, char **argv)
     uint64_t secondsElapsed = 0;
 
     // update timer for mapping
-    std::chrono::time_point<std::chrono::system_clock> last_map_update;
+    static std::chrono::time_point<std::chrono::system_clock> last_map_update;
     last_map_update = std::chrono::system_clock::now();
 
-    while(ros::ok() && secondsElapsed <= 480) {<
+    while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
 
         // check if we should do mapping
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last).count() > MAPPING_RATE) {
+        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_map_update).count() > MAPPING_RATE) {
             
             if(!map_client.call(map_srv)) {
                 ROS_ERROR("MAP SERVICE DID NOT RESPOND!");
             }
-
-            srv.response.map
 
             now = std::chrono::system_clock::now();
             last_map_update = now;
