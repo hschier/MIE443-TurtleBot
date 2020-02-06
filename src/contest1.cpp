@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <chrono>
+#include <unistd.h>
 // comment
 #define MAPPING_RATE 10000 // milliseconds
 
@@ -90,21 +91,26 @@ int main(int argc, char **argv) {
     uint64_t secondsElapsed = 0;
 
     //hyperparamaters
+    int spinfreq = 60;
     float linspeed = 0.1;
     float angspeed = 0.5;
     float angular = 0.0;
     float linear = linspeed;
     int state = 0;
-    float turnstarttime;
+    float turnstarttime = 0;
     float turndur = 0.8;
     float backdur = 0;
     int randsign;
 
+
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         ROS_DEBUG("spun");
-        if(laser_bum.state == PRESSED && state == 0) {
+        if (secondsElapsed > 120 && secondsElapsed % spinfreq < 1){
             turnstarttime = secondsElapsed;
+            state = 4;
+        }
+        else if(laser_bum.state == PRESSED && state == 0) {
             linear = 0;
             if(laser_bum.bumper == RIGHT) {
                 state = 1;
@@ -132,7 +138,7 @@ int main(int argc, char **argv) {
                 linear = 0;
                 angular = -angspeed;
             }
-            if(secondsElapsed - turnstarttime > turndur) {
+            if(laser_bum.state == RELEASED || secondsElapsed - turnstarttime > turndur) {
                 state = 0;
             }
         }
@@ -145,7 +151,7 @@ int main(int argc, char **argv) {
                 linear = 0;
                 angular = angspeed;
             }
-            if(secondsElapsed - turnstarttime > turndur){
+            if(laser_bum.state == RELEASED || secondsElapsed - turnstarttime > turndur){
                 state = 0;
             }
         }
@@ -158,7 +164,15 @@ int main(int argc, char **argv) {
                 linear = 0;
                 angular = randsign*angspeed;
             }
-            if(secondsElapsed - turnstarttime > turndur) {
+            if(laser_bum.state == RELEASED || secondsElapsed - turnstarttime > turndur) {
+                state = 0;
+            }
+        }
+
+        if(state == 4){
+            angular = angspeed;
+            linear = 0;
+            if(secondsElapsed - turnstarttime > 5){
                 state = 0;
             }
         }
