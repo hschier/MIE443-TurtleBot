@@ -22,14 +22,8 @@
 
 #define USING_SIM 1 // Comment me out if using a real robot
 
-struct laser_bumper_struct {
-    bool left;
-    bool center;
-    bool right;
-    bool none;
-} laser_bumper recent_bump;
-
 kobuki_msgs::BumperEvent bum;
+kobuki_msgs::BumperEvent laser_bum;
 sensor_msgs::LaserScan laser;
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg) {
@@ -38,20 +32,39 @@ void bumperCallback(const kobuki_msgs::BumperEvent msg) {
 
 void laserCallback(const sensor_msgs::LaserScan msg) {
 	laser = msg;
-    points_count = size(laser.ranges);
-    mid = points_count/2;
-    center = 0;
+    int points_count = size(laser.ranges);
+    int mid = points_count/2;
+    bool left = false;
+    bool right = false;
+    bool center = false;
+    laser_bum.state = UNPRESSED;
     // laser bumper for middle
-    for (int i = mid-5; i < mid+5; i++) {
+    for (int i = 0; i < points_count; i++) {
         if (laser.ranges(i) < 0.55) {
-            center = 1;
+            laser_bum.state = PRESSED;
+            if (i < mid-5){
+                left = true;
+            }
+            else if (i > mid+5){
+                right = true;
+            }
+            else{
+                center = true;
+            }
         }
     }
-
+    if ((left && right) || (center && !left && !right)){
+        laser_bum.bumper = CENTER;
+    }
+    else if (left){
+        laser_bum.bumper = LEFT;
+    }
+    else if (right){
+        laser_bum.bumper = RIGHT;
+    }
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
     ros::init(argc, argv, "image_listener");
     ros::NodeHandle nh;
 
@@ -71,6 +84,8 @@ int main(int argc, char **argv)
     std::chrono::time_point<std::chrono::system_clock>
         start = std::chrono::system_clock::now();
         std::chrono::time_point<std::chrono::system_clock>
+    
+    
     most_recent_bump = std::chrono::system_clock::now() - std::chrono::milliseconds(10000);
     uint64_t secondsElapsed = 0;
 
