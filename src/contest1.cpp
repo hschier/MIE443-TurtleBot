@@ -20,11 +20,14 @@
 #define RELEASED 0
 #define PRESSED 1
 
+#define USING_SIM 1 // Comment me out if using a real robot
+
 struct laser_bumper_struct {
     bool left;
     bool center;
     bool right;
-} laser_bumper;
+    bool none;
+} laser_bumper recent_bump;
 
 kobuki_msgs::BumperEvent bum;
 sensor_msgs::LaserScan laser;
@@ -35,6 +38,16 @@ void bumperCallback(const kobuki_msgs::BumperEvent msg) {
 
 void laserCallback(const sensor_msgs::LaserScan msg) {
 	laser = msg;
+    points_count = size(laser.ranges);
+    mid = points_count/2;
+    center = 0;
+    // laser bumper for middle
+    for (int i = mid-5; i < mid+5; i++) {
+        if (laser.ranges(i) < 0.55) {
+            center = 1;
+        }
+    }
+
 }
 
 int main(int argc, char **argv)
@@ -55,27 +68,42 @@ int main(int argc, char **argv)
     geometry_msgs::Twist vel;
 
     // contest count down timer
-    std::chrono::time_point<std::chrono::system_clock> start;
-    start = std::chrono::system_clock::now();
+    std::chrono::time_point<std::chrono::system_clock>
+        start = std::chrono::system_clock::now();
+        std::chrono::time_point<std::chrono::system_clock>
+    most_recent_bump = std::chrono::system_clock::now() - std::chrono::milliseconds(10000);
     uint64_t secondsElapsed = 0;
 
-    // update timer for mapping
-    static std::chrono::time_point<std::chrono::system_clock> last_map_update;
-    last_map_update = std::chrono::system_clock::now();
+    bool evading_center = 0;
+    bool evading_left = 0;
+    bool evading_right = 0;
 
-    while(ros::ok() && secondsElapsed <= 480) {
+    while (ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
-        std::chrono::time_point<std::chrono::system_clock> now = std::chrono::system_clock::now();
-
-        // check if we should do mapping
-        if (std::chrono::duration_cast<std::chrono::milliseconds>(now - last_map_update).count() > MAPPING_RATE) {
-            
-            if(!map_client.call(map_srv)) {
-                ROS_ERROR("MAP SERVICE DID NOT RESPOND!");
-            }
-
+        std::chrono::time_point<std::chrono::system_clock>
             now = std::chrono::system_clock::now();
-            last_map_update = now;
+            
+        if (laser_bumper.center) {
+            evading_center = 1;
+            ROS_DEBUG("Bumped Center");
+        } else if (laser_bumper.left) {
+            evading_left = 1;
+            ROS_DEBUG("Bumped Left");
+        } else if (laser_bumper.right) {
+            evading_right = 1;
+            ROS_DEBUG("Bumped Right");
+        } else {
+            ROS_DEBUG("Nothing Bumped");
+        }
+
+        ms_since_last_bump = std::chrono::duration_cast<std::chrono::milliseconds>(now - most_recent_bump).count();
+
+        if (ms_since_last_bump < 500) {
+            if
+        } else {
+            evading_center = 0;
+            evading_left = 0;
+            evading_right = 0;
         }
 
         vel.angular.z; // angular
