@@ -90,20 +90,20 @@ int main(int argc, char **argv) {
     uint64_t secondsElapsed = 0;
 
     //hyperparamaters
-    float angular = 0.0;
-    float linear = 0.1;
     float linspeed = 0.1;
     float angspeed = 0.5;
+    float angular = 0.0;
+    float linear = linspeed;
     int state = 0;
     float turnstarttime;
-    float turndur = 0.5;
+    float turndur = 0.8;
     float backdur = 0;
     int randsign;
 
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         ROS_DEBUG("spun");
-        if(laser_bum.state == PRESSED) {
+        if(laser_bum.state == PRESSED && state == 0) {
             turnstarttime = secondsElapsed;
             linear = 0;
             if(laser_bum.bumper == RIGHT) {
@@ -120,7 +120,7 @@ int main(int argc, char **argv) {
         }
 
         if(state == 0) {
-            linear = 0.1;
+            linear = linspeed;
             angular = 0.0;
         }
 
