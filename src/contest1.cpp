@@ -32,20 +32,20 @@ void bumperCallback(const kobuki_msgs::BumperEvent msg) {
 
 void laserCallback(const sensor_msgs::LaserScan msg) {
 	laser = msg;
-    int points_count = size(laser.ranges);
+    int points_count = laser.ranges.size();
     int mid = points_count/2;
     bool left = false;
     bool right = false;
     bool center = false;
-    laser_bum.state = UNPRESSED;
+    laser_bum.state = RELEASED;
     // laser bumper for middle
     for (int i = 0; i < points_count; i++) {
-        if (laser.ranges(i) < 0.55) {
+        if (laser.ranges[i] < 0.55) {
             laser_bum.state = PRESSED;
-            if (i < mid-5){
+            if (i < mid-5) {
                 left = true;
             }
-            else if (i > mid+5){
+            else if (i > mid+5) {
                 right = true;
             }
             else{
@@ -53,18 +53,18 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
             }
         }
     }
-    if ((left && right) || (center && !left && !right)){
+    if ((left && right) || (center && !left && !right)) {
         laser_bum.bumper = CENTER;
     }
-    else if (left){
+    else if (left) {
         laser_bum.bumper = LEFT;
     }
-    else if (right){
+    else if (right) {
         laser_bum.bumper = RIGHT;
     }
 }
 
-int main(int argc, char **argv){
+int main(int argc, char **argv) {
     ros::init(argc, argv, "image_listener");
     ros::NodeHandle nh;
 
@@ -89,46 +89,87 @@ int main(int argc, char **argv){
     most_recent_bump = std::chrono::system_clock::now() - std::chrono::milliseconds(10000);
     uint64_t secondsElapsed = 0;
 
-    bool evading_center = 0;
-    bool evading_left = 0;
-    bool evading_right = 0;
+    //hyperparamaters
+    float angular = 0.0;
+    float linear = 0.1;
+    float linspeed = 0.1;
+    float angspeed = 0.5;
+    int state = 0;
+    float turnstarttime;
+    float turndur = 0.5;
+    float backdur = 0;
+    int randsign;
 
-    while (ros::ok() && secondsElapsed <= 480) {
+    while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
-        std::chrono::time_point<std::chrono::system_clock>
-            now = std::chrono::system_clock::now();
-            
-        if (laser_bumper.center) {
-            evading_center = 1;
-            ROS_DEBUG("Bumped Center");
-        } else if (laser_bumper.left) {
-            evading_left = 1;
-            ROS_DEBUG("Bumped Left");
-        } else if (laser_bumper.right) {
-            evading_right = 1;
-            ROS_DEBUG("Bumped Right");
-        } else {
-            ROS_DEBUG("Nothing Bumped");
+        ROS_DEBUG("spun");
+        if(laser_bum.state == PRESSED) {
+            turnstarttime = secondsElapsed;
+            linear = 0;
+            if(laser_bum.bumper == RIGHT) {
+                state = 1;
+            }
+            else if(laser_bum.bumper == LEFT) {
+                state = 2;
+
+            }
+            else{
+                state = 3;
+                randsign = copysign(1, rand()%3-1);
+            }
         }
 
-        ms_since_last_bump = std::chrono::duration_cast<std::chrono::milliseconds>(now - most_recent_bump).count();
-
-        if (ms_since_last_bump < 500) {
-            if
-        } else {
-            evading_center = 0;
-            evading_left = 0;
-            evading_right = 0;
+        if(state == 0) {
+            linear = 0.1;
+            angular = 0.0;
         }
 
-        vel.angular.z; // angular
-        vel.linear.x; // linear
+        if(state == 1) {
+            if(secondsElapsed - turnstarttime < backdur) {
+                linear = -linspeed;
+            }
+            else{
+                linear = 0;
+                angular = -angspeed;
+            }
+            if(secondsElapsed - turnstarttime > turndur) {
+                state = 0;
+            }
+        }
+
+        if(state == 2) {
+            if(secondsElapsed - turnstarttime < backdur) {
+                linear = -linspeed;
+            }
+            else{
+                linear = 0;
+                angular = angspeed;
+            }
+            if(secondsElapsed - turnstarttime > turndur){
+                state = 0;
+            }
+        }
+        
+        if(state == 3) {
+            if(secondsElapsed - turnstarttime < backdur) {
+                linear = -linspeed;
+            }
+            else{
+                linear = 0;
+                angular = randsign*angspeed;
+            }
+            if(secondsElapsed - turnstarttime > turndur) {
+                state = 0;
+            }
+        }
+        
+        vel.angular.z = angular;
+        vel.linear.x = linear;
         vel_pub.publish(vel);
 
         // The last thing to do is to update the timer.
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count();
         loop_rate.sleep();
     }
-
     return 0;
 }
