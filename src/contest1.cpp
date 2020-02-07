@@ -97,17 +97,21 @@ int main(int argc, char **argv) {
     float angular = 0.0;
     float linear = linspeed;
     int state = 0;
-    float turnstarttime = 0;
+    float starttime = 0;
     float turndur = 0.8;
     float backdur = 0;
     int randsign;
 
 
-    while(ros::ok() && secondsElapsed <= 480) {
+    while(ros::ok() && secondsElapsed <= 9999999) {
         ros::spinOnce();
         ROS_DEBUG("spun");
-        if (secondsElapsed > 120 && secondsElapsed % spinfreq < 1){
-            turnstarttime = secondsElapsed;
+        if(bum.state == PRESSED){
+            starttime = secondsElapsed;
+            state = 5;
+        }
+        else if (secondsElapsed > 120 && secondsElapsed % spinfreq < 1){
+            starttime = secondsElapsed;
             state = 4;
         }
         else if(laser_bum.state == PRESSED && state == 0) {
@@ -131,40 +135,40 @@ int main(int argc, char **argv) {
         }
 
         if(state == 1) {
-            if(secondsElapsed - turnstarttime < backdur) {
+            if(secondsElapsed - starttime < backdur) {
                 linear = -linspeed;
             }
             else{
                 linear = 0;
                 angular = -angspeed;
             }
-            if(laser_bum.state == RELEASED || secondsElapsed - turnstarttime > turndur) {
+            if(laser_bum.state == RELEASED || secondsElapsed - starttime > turndur) {
                 state = 0;
             }
         }
 
         if(state == 2) {
-            if(secondsElapsed - turnstarttime < backdur) {
+            if(secondsElapsed - starttime < backdur) {
                 linear = -linspeed;
             }
             else{
                 linear = 0;
                 angular = angspeed;
             }
-            if(laser_bum.state == RELEASED || secondsElapsed - turnstarttime > turndur){
+            if(laser_bum.state == RELEASED || secondsElapsed - starttime > turndur){
                 state = 0;
             }
         }
         
         if(state == 3) {
-            if(secondsElapsed - turnstarttime < backdur) {
+            if(secondsElapsed - starttime < backdur) {
                 linear = -linspeed;
             }
             else{
                 linear = 0;
                 angular = randsign*angspeed;
             }
-            if(laser_bum.state == RELEASED || secondsElapsed - turnstarttime > turndur) {
+            if(laser_bum.state == RELEASED || secondsElapsed - starttime > turndur) {
                 state = 0;
             }
         }
@@ -172,11 +176,19 @@ int main(int argc, char **argv) {
         if(state == 4){
             angular = angspeed;
             linear = 0;
-            if(secondsElapsed - turnstarttime > 5){
+            if(secondsElapsed - starttime > 5){
                 state = 0;
             }
         }
         
+        if(state == 5){
+            angular = 0;
+            linear = -linspeed;
+            if(secondsElapsed = starttime > 0.5){
+                state = 0;
+            }
+        }
+
         vel.angular.z = angular;
         vel.linear.x = linear;
         vel_pub.publish(vel);
