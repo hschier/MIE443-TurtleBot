@@ -12,8 +12,9 @@
 #include <unistd.h>
 #include <string>
 
-// comment
-#define MAPPING_RATE 10000 // milliseconds
+// TODO: Tune speeds
+// TODO: modify gmapping for the tiny laptop (unless they allow bucket lol)
+// TODO: modify traversal a bit, maybe random turns? It's pretty good rn.
 
 // bumper
 #define LEFT 0
@@ -44,9 +45,9 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
         if (laser.ranges[i] < 0.55) {
             laser_bum.state = PRESSED;
             if (i < mid-5) {
-                left = true;
-            } else if (i > mid+5) {
                 right = true;
+            } else if (i > mid+5) {
+                left = true;
             }
             else {
                 center = true;
@@ -54,10 +55,13 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
         }
     }
     if ((left && right) || (center && !left && !right)) {
+        ROS_WARN("CENTER");
         laser_bum.bumper = CENTER;
     } else if (left) {
+        ROS_WARN("LEFT");
         laser_bum.bumper = LEFT;
     } else if (right) {
+        ROS_WARN("RIGHT");
         laser_bum.bumper = RIGHT;
     }
 }
@@ -98,9 +102,10 @@ int main(int argc, char **argv) {
     uint64_t ms_in_state = 0;
 
     // hyperultragigauberparamaters
-    float BACKUP_SPEED = -0.1;
-    float FORWARD_SPEED = 0.1;
+    float BACKUP_SPEED = -0.25;
+    float FORWARD_SPEED = 0.25;
     float TURN_SPEED = 0.3;
+    float PEEK_TURN_SPEED = 1.2;
 
     float angular = 0.0;
     float linear = 0.0;
@@ -124,8 +129,8 @@ int main(int argc, char **argv) {
         ///////////////////////////////////////////////////
         // Define our states                             //
         ///////////////////////////////////////////////////
-        if (state.compare("go fowards")) {
-            ROS_INFO("going fowards");
+        if (state.compare("go forwards") == 0) {
+            ROS_INFO("going forwards");
             linear = FORWARD_SPEED;
             angular = 0;
             if (bumper.state == PRESSED) {
@@ -140,57 +145,73 @@ int main(int argc, char **argv) {
             } else if (laser_bum.state == PRESSED && laser_bum.bumper == RIGHT) {
                 state = "avoiding right wall";
                 state_timestamp = now;
+            } else if (ms_in_state > 3000) {
+                state = "peeking";
+                state_timestamp = now;
             }
-        } else if (state.compare("backing up before right turn")) {
+        } else if (state.compare("backing up before right turn") == 0) {
             linear = BACKUP_SPEED;
             angular = 0;
             if (ms_in_state > 1000) {
                 state = "right turn";
                 state_timestamp = now;
             }
-        } else if (state.compare("backing up before left turn")) {
+        } else if (state.compare("backing up before left turn") == 0) {
             linear = BACKUP_SPEED;
             angular = 0;
             if (ms_in_state > 1000) {
                 state = "left turn";
                 state_timestamp = now;
             }
-        } else if (state.compare("backing up before rng turn")) {
+        } else if (state.compare("backing up before rng turn") == 0) {
             linear = BACKUP_SPEED;
             angular = 0;
             if (ms_in_state > 1000) {
                 state = "rng turn";
                 state_timestamp = now;
             }
-        } else if (state.compare("right turn")) {
+        } else if (state.compare("right turn") == 0) {
             linear = 0;
             angular = TURN_SPEED;
             if (ms_in_state > 1000) {
-                state = "go fowards";
+                state = "go forwards";
                 state_timestamp = now;
             }
-        } else if (state.compare("left turn")) {
+        } else if (state.compare("left turn") == 0) {
             linear = 0;
             angular = -TURN_SPEED;
             if (ms_in_state > 1000) {
-                state = "go fowards";
+                state = "go forwards";
                 state_timestamp = now;
             }
-        } else if (state.compare("rng turn")) {
-            state = w_coin_flip(0.50) ? "left turn" : "left right";
+        } else if (state.compare("rng turn") == 0) {
+            state = w_coin_flip(0.50) ? "left turn" : "right turn";
             state_timestamp = now;
-        } else if (state.compare("avoiding left wall")) {
+        } else if (state.compare("avoiding left wall") == 0) {
             linear = 0;
             angular = -TURN_SPEED;
             if (laser_bum.state == RELEASED) {
-                state = "go fowards";
+                state = "go forwards";
                 state_timestamp = now;
             }
-        } else if (state.compare("avoiding right wall")) {
+        } else if (state.compare("avoiding right wall") == 0) {
             linear = 0;
             angular = TURN_SPEED;
             if (laser_bum.state == RELEASED) {
-                state = "go fowards";
+                state = "go forwards";
+                state_timestamp = now;
+            }
+        } else if (state.compare("peeking") == 0) {
+            linear = 0;
+            int peektime = 500;
+            if (ms_in_state < peektime) {
+                angular = PEEK_TURN_SPEED; // peek left
+            } else if (ms_in_state < peektime * 3){
+                angular = -PEEK_TURN_SPEED; // peek right
+            } else if (ms_in_state < peektime * 4) {
+                angular = PEEK_TURN_SPEED; // return to center
+            } else {
+                state = "go forwards";
                 state_timestamp = now;
             }
         }
