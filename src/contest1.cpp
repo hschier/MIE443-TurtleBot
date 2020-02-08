@@ -10,6 +10,8 @@
 #include <cstdlib>
 #include <chrono>
 #include <unistd.h>
+#include <string>
+
 // comment
 #define MAPPING_RATE 10000 // milliseconds
 
@@ -21,14 +23,12 @@
 #define RELEASED 0
 #define PRESSED 1
 
-kobuki_msgs::BumperEvent bum;
+kobuki_msgs::BumperEvent bumper;
 kobuki_msgs::BumperEvent laser_bum;
 sensor_msgs::LaserScan laser;
 
-enum State_enum {go_forwads, backup_then_turn_right, backup_then_turn_left, rng_turn, backup_then_rng_turn, bumper_right_turn, bumper_left_turn } state;
-
 void bumperCallback(const kobuki_msgs::BumperEvent msg) {
-    bum = msg;
+    bumper = msg;
 }
 
 void laserCallback(const sensor_msgs::LaserScan msg) {
@@ -62,6 +62,12 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
     }
 }
 
+bool w_coin_flip(float weight) {
+    // weighted coin flip. val is the ratio of 1 to 0
+    float val = rand() / float(RAND_MAX);
+    return (val < weight);
+}
+
 int main(int argc, char **argv) {
     ros::init(argc, argv, "image_listener");
     ros::NodeHandle nh;
@@ -81,103 +87,116 @@ int main(int argc, char **argv) {
     // contest count down timer
     std::chrono::time_point<std::chrono::system_clock>
         start = std::chrono::system_clock::now();
-    std::chrono::time_point<std::chrono::system_clock>
-        most_recent_bump = std::chrono::system_clock::now() - std::chrono::milliseconds(10000);
     uint64_t secondsElapsed = 0;
 
-    // hyperparamaters
-    int spin_freq = 60;
-    float lin_speed = 0.1;
-    float ang_speed = 0.3;
-    float angular = 0.0;
-    float linear = lin_speed;
-    int state = go_forwads;
-    float start_time = 0;
-    float turn_dur = 2;
-    float back_dur = 2;
-    int randsign;
+    std::chrono::time_point<std::chrono::system_clock>
+        now = std::chrono::system_clock::now();
 
+    std::chrono::time_point<std::chrono::system_clock>
+        state_timestamp = std::chrono::system_clock::now();
+
+    uint64_t ms_in_state = 0;
+
+    // hyperultragigauberparamaters
+    float BACKUP_SPEED = -0.1;
+    float FORWARD_SPEED = 0.1;
+    float TURN_SPEED = 0.3;
+
+    float angular = 0.0;
+    float linear = 0.0;
+
+    std::string state = "go forwards"; 
 
     while(ros::ok() && secondsElapsed <= 8*60) {
         ros::spinOnce();
-        ROS_INFO("State is %i", state);
+        ROS_INFO("in state %s for %d ms", state.c_str(), ms_in_state);
 
-        // Determine which case we should be in
-        if (bum.state == PRESSED && state != backup_then_turn_right) {
-            start_time = secondsElapsed;
-            randsign = copysign(1, rand()%3-1);
-            state = backup_then_turn_right;
-        }
-        else if (secondsElapsed > 120 && secondsElapsed % spin_freq == 0) {
-            // if it's pressed and we are going forwards
-            start_time = secondsElapsed;
-            randsign = copysign(1, rand()%3-1);
-            state = rng_turn;
-        }
-        else if (laser_bum.state == PRESSED && state == go_forwads) {
+        now = std::chrono::system_clock::now();
+        // figure out how long we've been in current state
+        ms_in_state = std::chrono::duration_cast<std::chrono::milliseconds>(now - state_timestamp).count();
+
+        ///////////////////////////////////////////////////
+        // Override current state if these events happen //
+        ///////////////////////////////////////////////////
+
+        // nothing here right now...
+
+        ///////////////////////////////////////////////////
+        // Define our states                             //
+        ///////////////////////////////////////////////////
+        if (state.compare("go fowards")) {
+            ROS_INFO("going fowards");
+            linear = FORWARD_SPEED;
+            angular = 0;
+            if (bumper.state == PRESSED) {
+                state = "backing up before rng turn";
+                state_timestamp = now;
+            } else if (laser_bum.state == PRESSED && laser_bum.bumper == CENTER) {
+                state = "backing up before rng turn";
+                state_timestamp = now;
+            } else if (laser_bum.state == PRESSED && laser_bum.bumper == LEFT) {
+                state = "avoiding left wall";
+                state_timestamp = now;
+            } else if (laser_bum.state == PRESSED && laser_bum.bumper == RIGHT) {
+                state = "avoiding right wall";
+                state_timestamp = now;
+            }
+        } else if (state.compare("backing up before right turn")) {
+            linear = BACKUP_SPEED;
+            angular = 0;
+            if (ms_in_state > 1000) {
+                state = "right turn";
+                state_timestamp = now;
+            }
+        } else if (state.compare("backing up before left turn")) {
+            linear = BACKUP_SPEED;
+            angular = 0;
+            if (ms_in_state > 1000) {
+                state = "left turn";
+                state_timestamp = now;
+            }
+        } else if (state.compare("backing up before rng turn")) {
+            linear = BACKUP_SPEED;
+            angular = 0;
+            if (ms_in_state > 1000) {
+                state = "rng turn";
+                state_timestamp = now;
+            }
+        } else if (state.compare("right turn")) {
             linear = 0;
-            if (laser_bum.bumper == RIGHT) {
-                start_time = secondsElapsed;
-                state = backup_then_turn_left;
-            } else if (laser_bum.bumper == LEFT) {
-                start_time = secondsElapsed;
-                state = backup_then_turn_right;
-            } else {
-                start_time = secondsElapsed;
-                randsign = copysign(1, rand()%3-1);
-                state = backup_then_rng_turn;
+            angular = TURN_SPEED;
+            if (ms_in_state > 1000) {
+                state = "go fowards";
+                state_timestamp = now;
+            }
+        } else if (state.compare("left turn")) {
+            linear = 0;
+            angular = -TURN_SPEED;
+            if (ms_in_state > 1000) {
+                state = "go fowards";
+                state_timestamp = now;
+            }
+        } else if (state.compare("rng turn")) {
+            state = w_coin_flip(0.50) ? "left turn" : "left right";
+            state_timestamp = now;
+        } else if (state.compare("avoiding left wall")) {
+            linear = 0;
+            angular = -TURN_SPEED;
+            if (laser_bum.state == RELEASED) {
+                state = "go fowards";
+                state_timestamp = now;
+            }
+        } else if (state.compare("avoiding right wall")) {
+            linear = 0;
+            angular = TURN_SPEED;
+            if (laser_bum.state == RELEASED) {
+                state = "go fowards";
+                state_timestamp = now;
             }
         }
 
-        switch (state) {
-            case go_forwads: // default case, go forwards
-                linear = lin_speed;
-                angular = 0.0;
-            break;
-            case backup_then_turn_left:
-                if (secondsElapsed - start_time < back_dur) {
-                    linear = -lin_speed;
-                } else {
-                    linear = 0;
-                    angular = -ang_speed;
-                }
-                if (secondsElapsed - start_time > turn_dur) {
-                    state = go_forwads;
-                }
-            break;
-            case backup_then_turn_right:
-                if (secondsElapsed - start_time < back_dur) {
-                    linear = -lin_speed;
-                } else {
-                    linear = 0;
-                    angular = ang_speed;
-                } if (secondsElapsed - start_time > turn_dur) {
-                    state = go_forwads;
-                }
-            break;
-            case backup_then_rng_turn:
-                if (secondsElapsed - start_time < back_dur) {
-                    angular = 0;
-                    linear = -lin_speed;
-                } else {
-                    linear = 0;
-                    angular = randsign*ang_speed;
-                }
-                if (secondsElapsed - start_time > turn_dur) {
-                    state = go_forwads;
-                }
-            break;
-            case rng_turn:
-                angular = randsign*ang_speed;
-                linear = 0;
-                if (secondsElapsed - start_time > turn_dur) {
-                    state = go_forwads;
-                }
-            break;
-        }
-
-        vel.angular.z = angular;
         vel.linear.x = linear;
+        vel.angular.z = angular;
         vel_pub.publish(vel);
 
         // The last thing to do is to update the timer.
