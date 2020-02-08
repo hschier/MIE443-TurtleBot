@@ -25,7 +25,7 @@ kobuki_msgs::BumperEvent bum;
 kobuki_msgs::BumperEvent laser_bum;
 sensor_msgs::LaserScan laser;
 
-enum State_enum {go_forwads, backup_then_turn_right, backup_then_turn_left, rng_turn, backup_then_rng_turn, bumper_right_turn, bumper_left_turn } state;
+enum State_enum { go_forwads, backup_then_turn_right, backup_then_turn_left, rng_turn, backup_then_rng_turn, bumper_right_turn, bumper_left_turn } state;
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg) {
     bum = msg;
@@ -47,7 +47,7 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
                 left = true;
             } else if (i > mid+5) {
                 right = true;
-            }
+            }gg
             else {
                 center = true;
             }
@@ -91,22 +91,22 @@ int main(int argc, char **argv) {
     float ang_speed = 0.3;
     float angular = 0.0;
     float linear = lin_speed;
-    int state = go_forwads;
+    int state = 0;
     float start_time = 0;
-    float turn_dur = 2;
+    float turn_dur = 1.2;
     float back_dur = 2;
     int randsign;
 
 
     while(ros::ok() && secondsElapsed <= 8*60) {
         ros::spinOnce();
-        ROS_INFO("State is %i", state);
+        ROS_DEBUG("spun");
 
         // Determine which case we should be in
-        if (bum.state == PRESSED && state != backup_then_turn_right) {
+        if (bum.state == PRESSED) {
             start_time = secondsElapsed;
             randsign = copysign(1, rand()%3-1);
-            state = backup_then_turn_right;
+            state = backup_then_rng_turn;
         }
         else if (secondsElapsed > 120 && secondsElapsed % spin_freq == 0) {
             // if it's pressed and we are going forwards
@@ -117,15 +117,12 @@ int main(int argc, char **argv) {
         else if (laser_bum.state == PRESSED && state == go_forwads) {
             linear = 0;
             if (laser_bum.bumper == RIGHT) {
-                start_time = secondsElapsed;
                 state = backup_then_turn_left;
             } else if (laser_bum.bumper == LEFT) {
-                start_time = secondsElapsed;
                 state = backup_then_turn_right;
             } else {
-                start_time = secondsElapsed;
                 randsign = copysign(1, rand()%3-1);
-                state = backup_then_rng_turn;
+                state = rng_turn;
             }
         }
 
@@ -141,7 +138,7 @@ int main(int argc, char **argv) {
                     linear = 0;
                     angular = -ang_speed;
                 }
-                if (secondsElapsed - start_time > turn_dur) {
+                if (laser_bum.state == RELEASED || secondsElapsed - start_time > turn_dur) {
                     state = go_forwads;
                 }
             break;
@@ -151,19 +148,18 @@ int main(int argc, char **argv) {
                 } else {
                     linear = 0;
                     angular = ang_speed;
-                } if (secondsElapsed - start_time > turn_dur) {
+                } if (laser_bum.state == RELEASED || secondsElapsed - start_time > turn_dur) {
                     state = go_forwads;
                 }
             break;
             case backup_then_rng_turn:
                 if (secondsElapsed - start_time < back_dur) {
-                    angular = 0;
                     linear = -lin_speed;
                 } else {
                     linear = 0;
                     angular = randsign*ang_speed;
                 }
-                if (secondsElapsed - start_time > turn_dur) {
+                if (laser_bum.state == RELEASED || secondsElapsed - start_time > turn_dur) {
                     state = go_forwads;
                 }
             break;
