@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     float angular = 0.0;
     float linear = 0.0;
 
-    std::string state = "go forwards"; 
+    std::string state = "slow 360 spin"; 
 
     while(ros::ok() && secondsElapsed <= 8*60) {
         ros::spinOnce();
@@ -227,6 +227,13 @@ int main(int argc, char **argv) {
             linear = 0;
             angular = FULL_TURN_SPEED;
             if (ms_in_state > fullTurnTime){
+                state = "go forwards";
+                state_timestamp = now;
+            }
+        } else if(state.compare("slow 360 spin") == 0){
+            linear = 0;
+            angular = FULL_TURN_SPEED/2;
+            if (ms_in_state > fullTurnTime*2){
                 state = "go forwards";
                 state_timestamp = now;
             }
