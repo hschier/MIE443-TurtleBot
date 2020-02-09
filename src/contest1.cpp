@@ -25,7 +25,7 @@
 #define PRESSED 1
 
 kobuki_msgs::BumperEvent bumper;
-kobuki_msgs::BumperEvent laser_bum;
+kobuki_msgs::BumperEvent laser_bumper;
 sensor_msgs::LaserScan laser;
 
 void bumperCallback(const kobuki_msgs::BumperEvent msg) {
@@ -39,11 +39,11 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
     bool left = false;
     bool right = false;
     bool center = false;
-    laser_bum.state = RELEASED;
+    laser_bumper.state = RELEASED;
     // laser bumper for middle
     for (int i = 0; i < points_count; i++) {
         if (laser.ranges[i] < 0.55) {
-            laser_bum.state = PRESSED;
+            laser_bumper.state = PRESSED;
             if (i < mid-5) {
                 right = true;
             } else if (i > mid+5) {
@@ -56,13 +56,13 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
     }
     if ((left && right) || (center && !left && !right)) {
         ROS_WARN("CENTER");
-        laser_bum.bumper = CENTER;
+        laser_bumper.bumper = CENTER;
     } else if (left) {
         ROS_WARN("LEFT");
-        laser_bum.bumper = LEFT;
+        laser_bumper.bumper = LEFT;
     } else if (right) {
         ROS_WARN("RIGHT");
-        laser_bum.bumper = RIGHT;
+        laser_bumper.bumper = RIGHT;
     }
 }
 
@@ -103,9 +103,13 @@ int main(int argc, char **argv) {
 
     // hyperultragigauberparamaters
     float BACKUP_SPEED = -0.25;
-    float FORWARD_SPEED = 0.25;
+    float FORWARD_SPEED = 0.15; // best .15
     float TURN_SPEED = 0.3;
-    float PEEK_TURN_SPEED = 1.2;
+    float PEEK_TURN_SPEED = 1.2; // best : 1.2
+    float FULL_TURN_SPEED = 1.0;
+
+    int peekTime = 500; // best : 500
+    int fullTurnTime = 6500;
 
     float angular = 0.0;
     float linear = 0.0;
@@ -130,19 +134,21 @@ int main(int argc, char **argv) {
         // Define our states                             //
         ///////////////////////////////////////////////////
         if (state.compare("go forwards") == 0) {
-            ROS_INFO("going forwards");
             linear = FORWARD_SPEED;
             angular = 0;
             if (bumper.state == PRESSED) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } else if (laser_bum.state == PRESSED && laser_bum.bumper == CENTER) {
+            } else if(secondsElapsed % 120 < 5){
+                state = "360 spin";
+                state_timestamp = now;
+            } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } else if (laser_bum.state == PRESSED && laser_bum.bumper == LEFT) {
+            } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT) {
                 state = "avoiding left wall";
                 state_timestamp = now;
-            } else if (laser_bum.state == PRESSED && laser_bum.bumper == RIGHT) {
+            } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == RIGHT) {
                 state = "avoiding right wall";
                 state_timestamp = now;
             } else if (ms_in_state > 3000) {
@@ -190,27 +196,33 @@ int main(int argc, char **argv) {
         } else if (state.compare("avoiding left wall") == 0) {
             linear = 0;
             angular = -TURN_SPEED;
-            if (laser_bum.state == RELEASED) {
+            if (laser_bumper.state == RELEASED) {
                 state = "go forwards";
                 state_timestamp = now;
             }
         } else if (state.compare("avoiding right wall") == 0) {
             linear = 0;
             angular = TURN_SPEED;
-            if (laser_bum.state == RELEASED) {
+            if (laser_bumper.state == RELEASED) {
                 state = "go forwards";
                 state_timestamp = now;
             }
         } else if (state.compare("peeking") == 0) {
             linear = 0;
-            int peektime = 500;
-            if (ms_in_state < peektime) {
+            if (ms_in_state < peekTime) {
                 angular = PEEK_TURN_SPEED; // peek left
-            } else if (ms_in_state < peektime * 3){
+            } else if (ms_in_state < peekTime * 3){
                 angular = -PEEK_TURN_SPEED; // peek right
-            } else if (ms_in_state < peektime * 4) {
+            } else if (ms_in_state < peekTime * 4) {
                 angular = PEEK_TURN_SPEED; // return to center
             } else {
+                state = "go forwards";
+                state_timestamp = now;
+            }
+        } else if(state.compare("360 spin") == 0){
+            linear = 0;
+            angular = FULL_TURN_SPEED;
+            if (ms_in_state > fullTurnTime){
                 state = "go forwards";
                 state_timestamp = now;
             }
