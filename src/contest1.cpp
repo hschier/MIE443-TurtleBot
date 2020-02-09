@@ -85,6 +85,7 @@ int main(int argc, char **argv) {
     nav_msgs::GetMap map_srv;
 
     ros::Rate loop_rate(10);
+    ros::Rate overshoot_time(500);
 
     geometry_msgs::Twist vel;
 
@@ -106,10 +107,10 @@ int main(int argc, char **argv) {
     float FORWARD_SPEED = 0.15; // best .15
     float TURN_SPEED = 0.3;
     float PEEK_TURN_SPEED = 1.2; // best : 1.2
-    float FULL_TURN_SPEED = 1.0;
+    float FULL_TURN_SPEED = 0.5;
 
     int peekTime = 500; // best : 500
-    int fullTurnTime = 6500;
+    int fullTurnTime = 13000;
 
     float angular = 0.0;
     float linear = 0.0;
@@ -139,7 +140,7 @@ int main(int argc, char **argv) {
             if (bumper.state == PRESSED) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } else if(secondsElapsed % 120 < 5){
+            } else if(secondsElapsed % 30 < fullTurnTime/1500){
                 state = "360 spin";
                 state_timestamp = now;
             } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER) {
@@ -151,7 +152,7 @@ int main(int argc, char **argv) {
             } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == RIGHT) {
                 state = "avoiding right wall";
                 state_timestamp = now;
-            } else if (ms_in_state > 3000) {
+            } else if (ms_in_state == -3000) { // puck feecking
                 state = "peeking";
                 state_timestamp = now;
             }
@@ -191,12 +192,14 @@ int main(int argc, char **argv) {
                 state_timestamp = now;
             }
         } else if (state.compare("rng turn") == 0) {
-            state = w_coin_flip(0.50) ? "left turn" : "right turn";
+            //state = w_coin_flip(0.50) ? "left turn" : "right turn";
+            state = secondsElapsed < 240 ? "left turn" : "right turn";
             state_timestamp = now;
         } else if (state.compare("avoiding left wall") == 0) {
             linear = 0;
             angular = -TURN_SPEED;
             if (laser_bumper.state == RELEASED) {
+                // overshoot_time.sleep();
                 state = "go forwards";
                 state_timestamp = now;
             }
@@ -204,6 +207,7 @@ int main(int argc, char **argv) {
             linear = 0;
             angular = TURN_SPEED;
             if (laser_bumper.state == RELEASED) {
+                // overshoot_time.sleep();
                 state = "go forwards";
                 state_timestamp = now;
             }
