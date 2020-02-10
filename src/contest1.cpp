@@ -118,6 +118,8 @@ int main(int argc, char **argv) {
         last_backup_timestamp = std::chrono::system_clock::now();
 
     uint64_t ms_in_state = 0;
+    uint64_t ms_since_spin = 0;
+    uint64_t ms_since_backup = 0;
 
     // hyperultragigauberparamaters
     float BACKUP_SPEED = -0.25;
