@@ -246,6 +246,8 @@ int main(int argc, char **argv) {
 
         vel.linear.x = linear;
         vel.angular.z = angular;
+        vel.linear.x = 0;
+        vel.angular.z = 0;
         vel_pub.publish(vel);
 
         // The last thing to do is to update the timer.
