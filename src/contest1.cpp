@@ -54,6 +54,19 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
             }
         }
     }
+
+    float min_dist = 999.9;
+    int min_idx = 0;
+
+    for (int i = 0; i < points_count; i++) {
+        if (laser.ranges[i] < min_dist) {
+            min_dist = laser.ranges[i];
+            min_idx = i;
+        }
+    }
+    
+    ROS_INFO("min dist is %f m at index %d", min_dist, min_idx);
+
     if ((left && right) || (center && !left && !right)) {
         ROS_WARN("CENTER");
         laser_bumper.bumper = CENTER;
@@ -99,6 +112,12 @@ int main(int argc, char **argv) {
 
     std::chrono::time_point<std::chrono::system_clock>
         state_timestamp = std::chrono::system_clock::now();
+    
+    std::chrono::time_point<std::chrono::system_clock>
+        last_spin_timestamp = std::chrono::system_clock::now();
+
+    std::chrono::time_point<std::chrono::system_clock>
+        last_backup_timestamp = std::chrono::system_clock::now();
 
     uint64_t ms_in_state = 0;
 
@@ -119,11 +138,12 @@ int main(int argc, char **argv) {
 
     while(ros::ok() && secondsElapsed <= 8*60) {
         ros::spinOnce();
-        ROS_INFO("in state %s for %d ms", state.c_str(), ms_in_state);
-
         now = std::chrono::system_clock::now();
         // figure out how long we've been in current state
         ms_in_state = std::chrono::duration_cast<std::chrono::milliseconds>(now - state_timestamp).count();
+        ms_since_spin = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_spin_timestamp).count();
+        ms_since_backup = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_backup_timestamp).count();
+        ROS_INFO("in state %s for %d ms", state.c_str(), ms_in_state);
 
         ///////////////////////////////////////////////////
         // Override current state if these events happen //
@@ -140,20 +160,19 @@ int main(int argc, char **argv) {
             if (bumper.state == PRESSED) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } else if(secondsElapsed % 30 < fullTurnTime/1500 && secondsElapsed > 20){
+            } else if(ms_since_spin > 45000){
                 state = "360 spin";
+                last_spin_timestamp = now;
                 state_timestamp = now;
-            } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER) {
+            } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER && ms_since_backup > 5000) {
                 state = "backing up before rng turn";
+                last_backup_timestamp = now;
                 state_timestamp = now;
             } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT) {
                 state = "avoiding left wall";
                 state_timestamp = now;
             } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == RIGHT) {
                 state = "avoiding right wall";
-                state_timestamp = now;
-            } else if (ms_in_state == -3000) { // puck feecking
-                state = "peeking";
                 state_timestamp = now;
             }
         } else if (state.compare("backing up before right turn") == 0) {
@@ -199,7 +218,6 @@ int main(int argc, char **argv) {
             linear = 0;
             angular = -TURN_SPEED;
             if (laser_bumper.state == RELEASED) {
-                // overshoot_time.sleep();
                 state = "go forwards";
                 state_timestamp = now;
             }
@@ -207,19 +225,6 @@ int main(int argc, char **argv) {
             linear = 0;
             angular = TURN_SPEED;
             if (laser_bumper.state == RELEASED) {
-                // overshoot_time.sleep();
-                state = "go forwards";
-                state_timestamp = now;
-            }
-        } else if (state.compare("peeking") == 0) {
-            linear = 0;
-            if (ms_in_state < peekTime) {
-                angular = PEEK_TURN_SPEED; // peek left
-            } else if (ms_in_state < peekTime * 3){
-                angular = -PEEK_TURN_SPEED; // peek right
-            } else if (ms_in_state < peekTime * 4) {
-                angular = PEEK_TURN_SPEED; // return to center
-            } else {
                 state = "go forwards";
                 state_timestamp = now;
             }
