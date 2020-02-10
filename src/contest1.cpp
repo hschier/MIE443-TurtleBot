@@ -44,9 +44,9 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
     for (int i = 0; i < points_count; i++) {
         if (laser.ranges[i] < 0.55) {
             laser_bumper.state = PRESSED;
-            if (i < mid-5) {
+            if (i < mid-10) {
                 right = true;
-            } else if (i > mid+5) {
+            } else if (i > mid+10) {
                 left = true;
             }
             else {
@@ -110,7 +110,7 @@ int main(int argc, char **argv) {
     float FULL_TURN_SPEED = 0.5;
 
     int peekTime = 500; // best : 500
-    int fullTurnTime = 13000;
+    int fullTurnTime = 12566;
 
     float angular = 0.0;
     float linear = 0.0;
@@ -140,7 +140,7 @@ int main(int argc, char **argv) {
             if (bumper.state == PRESSED) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } else if(secondsElapsed % 30 < fullTurnTime/1500){
+            } else if(secondsElapsed % 30 < fullTurnTime/1500 && secondsElapsed > 20){
                 state = "360 spin";
                 state_timestamp = now;
             } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER) {
@@ -179,14 +179,14 @@ int main(int argc, char **argv) {
             }
         } else if (state.compare("right turn") == 0) {
             linear = 0;
-            angular = TURN_SPEED;
+            angular = -TURN_SPEED;
             if (ms_in_state > 1000) {
                 state = "go forwards";
                 state_timestamp = now;
             }
         } else if (state.compare("left turn") == 0) {
             linear = 0;
-            angular = -TURN_SPEED;
+            angular = TURN_SPEED;
             if (ms_in_state > 1000) {
                 state = "go forwards";
                 state_timestamp = now;
@@ -233,7 +233,7 @@ int main(int argc, char **argv) {
         } else if(state.compare("slow 360 spin") == 0){
             linear = 0;
             angular = FULL_TURN_SPEED/2;
-            if (ms_in_state > fullTurnTime*2){
+            if (ms_in_state > fullTurnTime*2 || (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT)){
                 state = "go forwards";
                 state_timestamp = now;
             }
