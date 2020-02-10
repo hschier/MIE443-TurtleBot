@@ -57,7 +57,7 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
             }
         }
     }
-    min_dist = 0;
+    min_dist = 9999;
     for (int i = 0; i < points_count; i++) {
         if (laser.ranges[i] < min_dist) {
             min_dist = laser.ranges[i];
