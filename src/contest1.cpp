@@ -28,6 +28,9 @@ kobuki_msgs::BumperEvent bumper;
 kobuki_msgs::BumperEvent laser_bumper;
 sensor_msgs::LaserScan laser;
 
+float min_dist = 999.9;
+int min_idx = 0;
+
 void bumperCallback(const kobuki_msgs::BumperEvent msg) {
     bumper = msg;
 }
@@ -55,17 +58,12 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
         }
     }
 
-    float min_dist = 999.9;
-    int min_idx = 0;
-
     for (int i = 0; i < points_count; i++) {
         if (laser.ranges[i] < min_dist) {
             min_dist = laser.ranges[i];
             min_idx = i;
         }
     }
-    
-    ROS_INFO("min dist is %f m at index %d", min_dist, min_idx);
 
     if ((left && right) || (center && !left && !right)) {
         ROS_WARN("CENTER");
@@ -144,6 +142,7 @@ int main(int argc, char **argv) {
         ms_since_spin = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_spin_timestamp).count();
         ms_since_backup = std::chrono::duration_cast<std::chrono::milliseconds>(now - last_backup_timestamp).count();
         ROS_INFO("in state %s for %d ms", state.c_str(), ms_in_state);
+        ROS_INFO("min dist is %f m at index %d", min_dist, min_idx);
 
         ///////////////////////////////////////////////////
         // Override current state if these events happen //
