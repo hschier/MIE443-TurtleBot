@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
     ros::ServiceClient map_client = nh.serviceClient<nav_msgs::GetMap>("gmapping/dynamic_map");
     nav_msgs::GetMap map_srv;
 
-    ros::Rate loop_rate(10);
+    ros::Rate loop_rate(60);
     ros::Rate overshoot_time(500);
 
     geometry_msgs::Twist vel;
@@ -124,7 +124,8 @@ int main(int argc, char **argv) {
     // hyperultragigauberparamaters
     float BACKUP_SPEED = -0.25;
     float FORWARD_SPEED = 0.15; // best .15
-    float TURN_SPEED = 0.3;
+    float TURN_SPEED = 1;
+    float AVOID_SPEED = 0.5;
     float PEEK_TURN_SPEED = 1.2; // best : 1.2
     float FULL_TURN_SPEED = 0.5;
 
@@ -161,11 +162,11 @@ int main(int argc, char **argv) {
             if (bumper.state == PRESSED) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } else if(ms_since_spin > 45000){
+            } /*else if(ms_since_spin > 45000){
                 state = "360 spin";
                 last_spin_timestamp = now;
                 state_timestamp = now;
-            } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER && ms_since_backup > 5000) {
+            }*/ else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER && ms_since_backup > 5000) {
                 state = "backing up before rng turn";
                 last_backup_timestamp = now;
                 state_timestamp = now;
@@ -217,14 +218,14 @@ int main(int argc, char **argv) {
             state_timestamp = now;
         } else if (state.compare("avoiding left wall") == 0) {
             linear = 0;
-            angular = -TURN_SPEED;
+            angular = -AVOID_SPEED;
             if (laser_bumper.state == RELEASED) {
                 state = "go forwards";
                 state_timestamp = now;
             }
         } else if (state.compare("avoiding right wall") == 0) {
             linear = 0;
-            angular = TURN_SPEED;
+            angular = AVOID_SPEED;
             if (laser_bumper.state == RELEASED) {
                 state = "go forwards";
                 state_timestamp = now;
@@ -247,8 +248,8 @@ int main(int argc, char **argv) {
 
         vel.linear.x = linear;
         vel.angular.z = angular;
-        vel.linear.x = 0;
-        vel.angular.z = 0;
+        // vel.linear.x = 0;
+        // vel.angular.z = 0;
         vel_pub.publish(vel);
 
         // The last thing to do is to update the timer.
