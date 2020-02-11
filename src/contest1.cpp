@@ -129,6 +129,10 @@ int main(int argc, char **argv) {
     float angular = 0.0;
     float linear = 0.0;
 
+    std::string turnState = "left"; 
+    float leftTime;
+    float rightTime;
+
     std::string state = "slow 360 spin"; 
 
     while(ros::ok() && secondsElapsed <= 8*60) {
@@ -223,7 +227,21 @@ int main(int argc, char **argv) {
         } else if(state.compare("360 spin") == 0){
             linear = 0;
             angular = FULL_TURN_SPEED;
-            if (ms_in_state > fullTurnTime){
+
+            if (turnState == "left" && (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT)){
+                turnState = "right";
+                leftTime = ms_in_state;
+            }
+            if (turnState == "right" && (laser_bumper.state == PRESSED && laser_bumper.bumper == RIGHT)){
+                turnState = "return"
+                rightTime = ms_in_state;
+            }
+            if (turnState == "return" && (ms_in_state - rightTime + leftTime) > 0{
+                turnState = "left";
+                state = "go forwards";
+                state_timestamp = now;
+            }
+            if (turnState == "left" && ms_in_state > fullTurnTime){
                 state = "go forwards";
                 state_timestamp = now;
             }
