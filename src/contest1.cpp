@@ -45,15 +45,12 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
     laser_bumper.state = RELEASED;
     // laser bumper for middle
     for (int i = 0; i < points_count; i++) {
-        if (laser.ranges[i] < 0.55) {
+        if (laser.ranges[i] < 0.56) {
             laser_bumper.state = PRESSED;
-            if (i < mid-10) {
+            if (i < mid) {
                 right = true;
-            } else if (i > mid+10) {
+            } else {
                 left = true;
-            }
-            else {
-                center = true;
             }
         }
     }
@@ -65,10 +62,7 @@ void laserCallback(const sensor_msgs::LaserScan msg) {
         }
     }
 
-    if ((left && right) || (center && !left && !right)) {
-        ROS_WARN("CENTER");
-        laser_bumper.bumper = CENTER;
-    } else if (left) {
+    if (left) {
         ROS_WARN("LEFT");
         laser_bumper.bumper = LEFT;
     } else if (right) {
@@ -122,7 +116,7 @@ int main(int argc, char **argv) {
     uint64_t ms_since_backup = 0;
 
     // hyperultragigauberparamaters
-    float BACKUP_SPEED = -0.25;
+    float BACKUP_SPEED = -0.19;
     float FORWARD_SPEED = 0.15; // best .15
     float TURN_SPEED = 1;
     float AVOID_SPEED = 0.5;
@@ -130,7 +124,7 @@ int main(int argc, char **argv) {
     float FULL_TURN_SPEED = 0.5;
 
     int peekTime = 500; // best : 500
-    int fullTurnTime = 12566;
+    int fullTurnTime = 12566*1.2;
 
     float angular = 0.0;
     float linear = 0.0;
@@ -162,13 +156,9 @@ int main(int argc, char **argv) {
             if (bumper.state == PRESSED) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } /*else if(ms_since_spin > 45000){
+            } else if(ms_since_spin > 45000){
                 state = "360 spin";
                 last_spin_timestamp = now;
-                state_timestamp = now;
-            }*/ else if (laser_bumper.state == PRESSED && laser_bumper.bumper == CENTER && ms_since_backup > 5000) {
-                state = "backing up before rng turn";
-                last_backup_timestamp = now;
                 state_timestamp = now;
             } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT) {
                 state = "avoiding left wall";
@@ -194,7 +184,7 @@ int main(int argc, char **argv) {
         } else if (state.compare("backing up before rng turn") == 0) {
             linear = BACKUP_SPEED;
             angular = 0;
-            if (ms_in_state > 1000) {
+            if (ms_in_state > 1500) {
                 state = "rng turn";
                 state_timestamp = now;
             }
