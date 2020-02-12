@@ -150,11 +150,11 @@ int main(int argc, char **argv) {
         ///////////////////////////////////////////////////
         // Define our states                             //
         ///////////////////////////////////////////////////
-        if (state.compare("go forwards") == 0) {
+        if (state.compare("go forward") == 0) {
             linear = FORWARD_SPEED;
             angular = 0;
             if (bumper.state == PRESSED) {
-                state = "backing up before rng turn";
+                state = secondsElapsed < 240 ? "back up and turn left" : "back up and turn right";
                 state_timestamp = now;
             } else if(ms_since_spin > 45000){
                 state = "360 spin";
@@ -167,45 +167,32 @@ int main(int argc, char **argv) {
                 state = "avoiding right wall";
                 state_timestamp = now;
             }
-        } else if (state.compare("backing up before right turn") == 0) {
-            linear = BACKUP_SPEED;
-            angular = 0;
-            if (ms_in_state > 1000) {
-                state = "right turn";
+        } else if (state.compare("back up and turn right") == 0) {
+            if (ms_in_state < 1000){
+                linear = BACKUP_SPEED;
+                angular = 0;
+            }
+            else if (ms_in_state < 2000) {
+                linear = 0;
+                angular = -TURN_SPEED;
+            }
+            else {
+                state = "go forward";
                 state_timestamp = now;
             }
-        } else if (state.compare("backing up before left turn") == 0) {
-            linear = BACKUP_SPEED;
-            angular = 0;
-            if (ms_in_state > 1000) {
-                state = "left turn";
+        } else if (state.compare("back up and turn left") == 0) {
+            if (ms_in_state < 1000){
+                linear = BACKUP_SPEED;
+                angular = 0;
+            }
+            else if (ms_in_state < 2000) {
+                linear = 0;
+                angular = TURN_SPEED;
+            }
+            else {
+                state = "go forward";
                 state_timestamp = now;
             }
-        } else if (state.compare("backing up before rng turn") == 0) {
-            linear = BACKUP_SPEED;
-            angular = 0;
-            if (ms_in_state > 1500) {
-                state = "rng turn";
-                state_timestamp = now;
-            }
-        } else if (state.compare("right turn") == 0) {
-            linear = 0;
-            angular = -TURN_SPEED;
-            if (ms_in_state > 1000) {
-                state = "go forwards";
-                state_timestamp = now;
-            }
-        } else if (state.compare("left turn") == 0) {
-            linear = 0;
-            angular = TURN_SPEED;
-            if (ms_in_state > 1000) {
-                state = "go forwards";
-                state_timestamp = now;
-            }
-        } else if (state.compare("rng turn") == 0) {
-            //state = w_coin_flip(0.50) ? "left turn" : "right turn";
-            state = secondsElapsed < 240 ? "left turn" : "right turn";
-            state_timestamp = now;
         } else if (state.compare("avoiding left wall") == 0) {
             linear = 0;
             angular = -AVOID_SPEED;
