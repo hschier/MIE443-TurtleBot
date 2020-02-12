@@ -197,28 +197,28 @@ int main(int argc, char **argv) {
             linear = 0;
             angular = -AVOID_SPEED;
             if (laser_bumper.state == RELEASED) {
-                state = "go forwards";
+                state = "go forward";
                 state_timestamp = now;
             }
         } else if (state.compare("avoiding right wall") == 0) {
             linear = 0;
             angular = AVOID_SPEED;
             if (laser_bumper.state == RELEASED) {
-                state = "go forwards";
+                state = "go forward";
                 state_timestamp = now;
             }
         } else if(state.compare("360 spin") == 0){
             linear = 0;
             angular = FULL_TURN_SPEED;
             if (ms_in_state > fullTurnTime){
-                state = "go forwards";
+                state = "go forward";
                 state_timestamp = now;
             }
         } else if(state.compare("slow 360 spin") == 0){
             linear = 0;
             angular = FULL_TURN_SPEED/2;
             if (ms_in_state > fullTurnTime*2 || (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT)){
-                state = "go forwards";
+                state = "go forward";
                 state_timestamp = now;
             }
         }
