@@ -158,7 +158,6 @@ int main(int argc, char **argv) {
                 state_timestamp = now;
             } else if(ms_since_spin > 30000){
                 state = "360 spin";
-                last_spin_timestamp = now;
                 state_timestamp = now;
             } else if (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT) {
                 state = "avoiding left wall";
@@ -226,6 +225,7 @@ int main(int argc, char **argv) {
             float modifier = secondsElapsed > 60 ? 1.1 : 0.9;
             if (ms_in_state > fullTurnTime*modifier){
                 state = "go forwards";
+                last_spin_timestamp = now;
                 state_timestamp = now;
             }
         } else if(state.compare("slow 360 spin") == 0){
@@ -233,6 +233,7 @@ int main(int argc, char **argv) {
             angular = FULL_TURN_SPEED/2;
             if (ms_in_state > fullTurnTime*2 || (laser_bumper.state == PRESSED && laser_bumper.bumper == LEFT)){
                 state = "go forwards";
+                last_spin_timestamp = now;
                 state_timestamp = now;
             }
         }
