@@ -223,7 +223,8 @@ int main(int argc, char **argv) {
         } else if(state.compare("360 spin") == 0){
             linear = 0;
             angular = FULL_TURN_SPEED;
-            if (ms_in_state > fullTurnTime){
+            float modifier = secondsElapsed > 60? 1.2 : 1;
+            if (ms_in_state > fullTurnTime*modifier){
                 state = "go forwards";
                 state_timestamp = now;
             }

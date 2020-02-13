@@ -99,12 +99,12 @@
       <link name="body">
         <visual name="visual">
           <geometry>
-            <mesh><uri>file:///usr/share/gazebo/models/MY580V2.dae</uri></mesh>
+            <mesh><uri>file:///usr/share/gazebo/models/MY580.dae</uri></mesh>
           </geometry>
         </visual>
         <collision name="collision">
           <geometry>
-            <mesh><uri>file:///usr/share/gazebo/models/MY580V2.dae</uri></mesh>
+            <mesh><uri>file:///usr/share/gazebo/models/MY580.dae</uri></mesh>
           </geometry>
         </collision>
       </link>
