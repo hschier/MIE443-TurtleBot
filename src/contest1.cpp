@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
             if (bumper.state == PRESSED) {
                 state = "backing up before rng turn";
                 state_timestamp = now;
-            } else if(ms_since_spin > 45000){
+            } else if(ms_since_spin > 30000){
                 state = "360 spin";
                 last_spin_timestamp = now;
                 state_timestamp = now;
